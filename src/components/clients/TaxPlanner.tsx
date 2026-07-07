@@ -1,9 +1,19 @@
-import React, { useState, useRef } from 'react';
-import { Upload, FileText, CheckCircle, Calculator, AlertCircle, ArrowRight, Download, Eye } from 'lucide-react';
+import React, { useState, useRef, useMemo } from 'react';
+import { Upload, FileText, CheckCircle, Calculator, AlertCircle, ArrowRight, Download, Eye, Edit2 } from 'lucide-react';
 import { Client } from '../../types';
 
 interface TaxPlannerProps {
   client: Client;
+}
+
+interface TaxData {
+  grossSalary: number;
+  interestIncome: number;
+  deduction80C: number;
+  deduction80D: number;
+  hraExemption: number;
+  tdsDeducted: number;
+  fileName: string;
 }
 
 export default function TaxPlanner({ client }: TaxPlannerProps) {
@@ -11,6 +21,16 @@ export default function TaxPlanner({ client }: TaxPlannerProps) {
   const [hasCalculated, setHasCalculated] = useState(false);
   const [activeRegime, setActiveRegime] = useState<'new' | 'old'>('new');
   const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  const [taxData, setTaxData] = useState<TaxData>({
+    grossSalary: 0,
+    interestIncome: 0,
+    deduction80C: 0,
+    deduction80D: 0,
+    hraExemption: 0,
+    tdsDeducted: 0,
+    fileName: ''
+  });
 
   const handleUploadClick = () => {
     fileInputRef.current?.click();
@@ -18,13 +38,95 @@ export default function TaxPlanner({ client }: TaxPlannerProps) {
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
+      const file = e.target.files[0];
       setIsUploading(true);
       // Simulate parsing and calculating after file selection
       setTimeout(() => {
+        // Generate somewhat randomized data based on file to prove it's dynamic
+        // or just use realistic defaults that can be edited
+        setTaxData({
+          grossSalary: 1550000,
+          interestIncome: 45000,
+          deduction80C: 150000,
+          deduction80D: 25000,
+          hraExemption: 120000,
+          tdsDeducted: 160000,
+          fileName: file.name
+        });
         setIsUploading(false);
         setHasCalculated(true);
       }, 2000);
     }
+  };
+
+  const handleInputChange = (field: keyof TaxData, value: string) => {
+    const numValue = parseInt(value.replace(/[^0-9]/g, ''), 10) || 0;
+    setTaxData(prev => ({ ...prev, [field]: numValue }));
+  };
+
+  // Tax Calculation Logic
+  const calculations = useMemo(() => {
+    const grossTotalIncome = taxData.grossSalary + taxData.interestIncome;
+    const standardDeduction = 50000;
+    
+    // Old Regime
+    const oldDeductions = standardDeduction + taxData.deduction80C + taxData.deduction80D + taxData.hraExemption;
+    let oldTaxableIncome = Math.max(0, grossTotalIncome - oldDeductions);
+    
+    let oldTax = 0;
+    if (oldTaxableIncome > 250000) {
+      if (oldTaxableIncome <= 500000) {
+        oldTax = (oldTaxableIncome - 250000) * 0.05;
+        if (oldTaxableIncome <= 500000) oldTax = 0; // 87A rebate
+      } else if (oldTaxableIncome <= 1000000) {
+        oldTax = 12500 + (oldTaxableIncome - 500000) * 0.20;
+      } else {
+        oldTax = 112500 + (oldTaxableIncome - 1000000) * 0.30;
+      }
+    }
+
+    // New Regime
+    const newDeductions = standardDeduction; // only standard deduction allowed
+    let newTaxableIncome = Math.max(0, grossTotalIncome - newDeductions);
+    
+    let newTax = 0;
+    if (newTaxableIncome > 300000) newTax += Math.min(newTaxableIncome - 300000, 300000) * 0.05;
+    if (newTaxableIncome > 600000) newTax += Math.min(newTaxableIncome - 600000, 300000) * 0.10;
+    if (newTaxableIncome > 900000) newTax += Math.min(newTaxableIncome - 900000, 300000) * 0.15;
+    if (newTaxableIncome > 1200000) newTax += Math.min(newTaxableIncome - 1200000, 300000) * 0.20;
+    if (newTaxableIncome > 1500000) newTax += (newTaxableIncome - 1500000) * 0.30;
+    
+    if (newTaxableIncome <= 700000) newTax = 0; // 87A rebate new regime
+
+    const oldCess = oldTax * 0.04;
+    const newCess = newTax * 0.04;
+
+    const oldTotalTax = oldTax + oldCess;
+    const newTotalTax = newTax + newCess;
+
+    return {
+      grossTotalIncome,
+      old: {
+        taxableIncome: oldTaxableIncome,
+        tax: oldTax,
+        cess: oldCess,
+        total: oldTotalTax,
+        liability: oldTotalTax - taxData.tdsDeducted
+      },
+      new: {
+        taxableIncome: newTaxableIncome,
+        tax: newTax,
+        cess: newCess,
+        total: newTotalTax,
+        liability: newTotalTax - taxData.tdsDeducted
+      }
+    };
+  }, [taxData]);
+
+  const currentCalc = activeRegime === 'old' ? calculations.old : calculations.new;
+
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(amount);
   };
 
   return (
@@ -68,7 +170,7 @@ export default function TaxPlanner({ client }: TaxPlannerProps) {
                   <CheckCircle className="w-5 h-5 text-green-600 mr-3" />
                   <div>
                     <h4 className="text-sm font-bold text-green-900">Tax Computation Successful</h4>
-                    <p className="text-[11px] text-green-700 font-mono mt-0.5">Parsed from: Form16_FY23-24.pdf</p>
+                    <p className="text-[11px] text-green-700 font-mono mt-0.5">Parsed from: {taxData.fileName || 'Form16_FY23-24.pdf'}</p>
                   </div>
                 </div>
                 <div className="flex gap-2">
@@ -109,17 +211,37 @@ export default function TaxPlanner({ client }: TaxPlannerProps) {
                          <td className="px-4 py-3">Income Sources</td>
                          <td className="px-4 py-3 text-right">Amount (₹)</td>
                        </tr>
-                       <tr>
-                         <td className="px-4 py-3 text-zinc-600 text-xs">Gross Salary (Per Form 16)</td>
-                         <td className="px-4 py-3 text-right font-mono text-xs">15,50,000</td>
+                       <tr className="group">
+                         <td className="px-4 py-2 text-zinc-600 text-xs flex items-center">
+                           Gross Salary (Per Form 16)
+                           <Edit2 className="w-3 h-3 ml-2 opacity-0 group-hover:opacity-100 text-zinc-400 transition-opacity" />
+                         </td>
+                         <td className="px-2 py-2">
+                           <input
+                             type="text"
+                             value={taxData.grossSalary || ''}
+                             onChange={(e) => handleInputChange('grossSalary', e.target.value)}
+                             className="w-full text-right font-mono text-xs bg-transparent border-0 focus:ring-1 focus:ring-zinc-300 rounded px-2 py-1"
+                           />
+                         </td>
                        </tr>
-                       <tr>
-                         <td className="px-4 py-3 text-zinc-600 text-xs">Income from Other Sources (Interest)</td>
-                         <td className="px-4 py-3 text-right font-mono text-xs">45,000</td>
+                       <tr className="group">
+                         <td className="px-4 py-2 text-zinc-600 text-xs flex items-center">
+                           Income from Other Sources (Interest)
+                           <Edit2 className="w-3 h-3 ml-2 opacity-0 group-hover:opacity-100 text-zinc-400 transition-opacity" />
+                         </td>
+                         <td className="px-2 py-2">
+                           <input
+                             type="text"
+                             value={taxData.interestIncome || ''}
+                             onChange={(e) => handleInputChange('interestIncome', e.target.value)}
+                             className="w-full text-right font-mono text-xs bg-transparent border-0 focus:ring-1 focus:ring-zinc-300 rounded px-2 py-1"
+                           />
+                         </td>
                        </tr>
                        <tr className="bg-zinc-50 font-bold border-t-2 border-zinc-200">
                          <td className="px-4 py-3">Gross Total Income</td>
-                         <td className="px-4 py-3 text-right font-mono text-sm">15,95,000</td>
+                         <td className="px-4 py-3 text-right font-mono text-sm">{formatCurrency(calculations.grossTotalIncome)}</td>
                        </tr>
                        
                        <tr className="bg-zinc-50 font-bold mt-4 border-t border-zinc-200">
@@ -132,17 +254,56 @@ export default function TaxPlanner({ client }: TaxPlannerProps) {
                              <td className="px-4 py-3 text-zinc-600 text-xs">Standard Deduction (Sec 16)</td>
                              <td className="px-4 py-3 text-right font-mono text-xs text-red-600">- 50,000</td>
                            </tr>
-                           <tr>
-                             <td className="px-4 py-3 text-zinc-600 text-xs">80C (EPF, PPF, LIC)</td>
-                             <td className="px-4 py-3 text-right font-mono text-xs text-red-600">- 1,50,000</td>
+                           <tr className="group">
+                             <td className="px-4 py-2 text-zinc-600 text-xs flex items-center">
+                               80C (EPF, PPF, LIC)
+                               <Edit2 className="w-3 h-3 ml-2 opacity-0 group-hover:opacity-100 text-zinc-400 transition-opacity" />
+                             </td>
+                             <td className="px-2 py-2">
+                               <div className="flex items-center justify-end text-red-600">
+                                 <span className="text-xs mr-1">-</span>
+                                 <input
+                                   type="text"
+                                   value={taxData.deduction80C || ''}
+                                   onChange={(e) => handleInputChange('deduction80C', e.target.value)}
+                                   className="w-full text-right font-mono text-xs bg-transparent border-0 focus:ring-1 focus:ring-zinc-300 rounded px-2 py-1 text-red-600"
+                                 />
+                               </div>
+                             </td>
                            </tr>
-                           <tr>
-                             <td className="px-4 py-3 text-zinc-600 text-xs">80D (Health Insurance)</td>
-                             <td className="px-4 py-3 text-right font-mono text-xs text-red-600">- 25,000</td>
+                           <tr className="group">
+                             <td className="px-4 py-2 text-zinc-600 text-xs flex items-center">
+                               80D (Health Insurance)
+                               <Edit2 className="w-3 h-3 ml-2 opacity-0 group-hover:opacity-100 text-zinc-400 transition-opacity" />
+                             </td>
+                             <td className="px-2 py-2">
+                               <div className="flex items-center justify-end text-red-600">
+                                 <span className="text-xs mr-1">-</span>
+                                 <input
+                                   type="text"
+                                   value={taxData.deduction80D || ''}
+                                   onChange={(e) => handleInputChange('deduction80D', e.target.value)}
+                                   className="w-full text-right font-mono text-xs bg-transparent border-0 focus:ring-1 focus:ring-zinc-300 rounded px-2 py-1 text-red-600"
+                                 />
+                               </div>
+                             </td>
                            </tr>
-                           <tr>
-                             <td className="px-4 py-3 text-zinc-600 text-xs">HRA Exemption (Sec 10)</td>
-                             <td className="px-4 py-3 text-right font-mono text-xs text-red-600">- 1,20,000</td>
+                           <tr className="group">
+                             <td className="px-4 py-2 text-zinc-600 text-xs flex items-center">
+                               HRA Exemption (Sec 10)
+                               <Edit2 className="w-3 h-3 ml-2 opacity-0 group-hover:opacity-100 text-zinc-400 transition-opacity" />
+                             </td>
+                             <td className="px-2 py-2">
+                               <div className="flex items-center justify-end text-red-600">
+                                 <span className="text-xs mr-1">-</span>
+                                 <input
+                                   type="text"
+                                   value={taxData.hraExemption || ''}
+                                   onChange={(e) => handleInputChange('hraExemption', e.target.value)}
+                                   className="w-full text-right font-mono text-xs bg-transparent border-0 focus:ring-1 focus:ring-zinc-300 rounded px-2 py-1 text-red-600"
+                                 />
+                               </div>
+                             </td>
                            </tr>
                          </>
                        ) : (
@@ -161,7 +322,7 @@ export default function TaxPlanner({ client }: TaxPlannerProps) {
                        <tr className="bg-zinc-50 font-bold border-t-2 border-zinc-200">
                          <td className="px-4 py-3">Total Taxable Income</td>
                          <td className="px-4 py-3 text-right font-mono text-sm">
-                           {activeRegime === 'old' ? '12,50,000' : '15,45,000'}
+                           {formatCurrency(currentCalc.taxableIncome)}
                          </td>
                        </tr>
                      </tbody>
@@ -175,25 +336,29 @@ export default function TaxPlanner({ client }: TaxPlannerProps) {
                    <div className="relative z-10">
                      <p className="text-[10px] font-mono uppercase tracking-widest text-zinc-400 mb-1">Total Tax Liability</p>
                      <p className="text-3xl font-bold tracking-tight mb-4">
-                       {activeRegime === 'old' ? '₹ 1,95,000' : '₹ 1,54,500'}
+                       {formatCurrency(currentCalc.total)}
                      </p>
                      
                      <div className="space-y-2 border-t border-zinc-800 pt-4">
                        <div className="flex justify-between text-xs">
                          <span className="text-zinc-400">Tax on Income</span>
-                         <span className="font-mono">
-                           {activeRegime === 'old' ? '₹ 1,87,500' : '₹ 1,48,557'}
-                         </span>
+                         <span className="font-mono">{formatCurrency(currentCalc.tax)}</span>
                        </div>
                        <div className="flex justify-between text-xs">
                          <span className="text-zinc-400">Health & Edu Cess (4%)</span>
-                         <span className="font-mono">
-                           {activeRegime === 'old' ? '₹ 7,500' : '₹ 5,943'}
-                         </span>
+                         <span className="font-mono">{formatCurrency(currentCalc.cess)}</span>
                        </div>
-                       <div className="flex justify-between text-xs text-green-400 font-bold mt-2 pt-2 border-t border-zinc-800">
-                         <span>TDS Deducted (Form 16)</span>
-                         <span className="font-mono">₹ 1,60,000</span>
+                       <div className="flex justify-between text-xs text-green-400 font-bold mt-2 pt-2 border-t border-zinc-800 group relative">
+                         <span className="flex items-center">
+                           TDS Deducted
+                           <Edit2 className="w-3 h-3 ml-2 opacity-0 group-hover:opacity-100 text-zinc-500 transition-opacity" />
+                         </span>
+                         <input
+                           type="text"
+                           value={taxData.tdsDeducted || ''}
+                           onChange={(e) => handleInputChange('tdsDeducted', e.target.value)}
+                           className="w-24 text-right font-mono bg-transparent border-0 focus:ring-1 focus:ring-zinc-600 rounded px-1 py-0.5 text-green-400"
+                         />
                        </div>
                      </div>
                    </div>
@@ -206,9 +371,11 @@ export default function TaxPlanner({ client }: TaxPlannerProps) {
                      <div>
                        <h4 className="text-xs font-bold text-blue-900 mb-1">Tax Action Required</h4>
                        <p className="text-[11px] text-blue-800 leading-relaxed">
-                         {activeRegime === 'new' 
-                           ? 'Client has a tax refund of ₹5,500 under the New Regime. Ready to file ITR-1.' 
-                           : 'Client has a tax payable of ₹35,000 under the Old Regime. Advance tax payment required before filing.'}
+                         {currentCalc.liability < 0 
+                           ? `Client has a tax refund of ${formatCurrency(Math.abs(currentCalc.liability))} under the ${activeRegime === 'new' ? 'New' : 'Old'} Regime. Ready to file ITR-1.` 
+                           : currentCalc.liability > 0 
+                             ? `Client has a tax payable of ${formatCurrency(currentCalc.liability)} under the ${activeRegime === 'new' ? 'New' : 'Old'} Regime. Advance tax payment required before filing.`
+                             : `Client tax liability is fully offset by TDS. No tax payable or refund.`}
                        </p>
                      </div>
                    </div>
