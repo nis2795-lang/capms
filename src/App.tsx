@@ -9,8 +9,10 @@ import CRMClientEngagement from './components/crm/CRMClientEngagement';
 import BillingDashboard from './components/billing/BillingDashboard';
 import RiskHealthDashboard from './components/ai/RiskHealthDashboard';
 import AIAssistant from './components/ai/AIAssistant';
+import TaskKanban from './components/tasks/TaskKanban';
+import DocumentVault from './components/documents/DocumentVault';
+import ComplianceEngine from './components/compliance/ComplianceEngine';
 import { ViewState } from './types';
-import { AlertCircle } from 'lucide-react';
 
 export default function App() {
   const [currentView, setCurrentView] = useState<ViewState>('dashboard');
@@ -52,17 +54,11 @@ export default function App() {
       case 'assistant':
         return <AIAssistant />;
       case 'compliance':
+        return <ComplianceEngine />;
       case 'documents':
+        return <DocumentVault />;
       case 'tasks':
-        return (
-          <div className="flex flex-col items-center justify-center h-[60vh] text-zinc-500">
-            <AlertCircle className="w-12 h-12 mb-4 text-zinc-300" />
-            <h2 className="text-lg font-bold tracking-tight text-zinc-700">Module Under Construction</h2>
-            <p className="mt-2 text-[13px] text-center max-w-md opacity-80">
-              This module is part of the CAPMS Phase 1 rollout but is currently a placeholder in this prototype. Navigate to <strong>Dashboard</strong> or <strong>Client 360 Workspace</strong> to see core features.
-            </p>
-          </div>
-        );
+        return <TaskKanban />;
       default:
         return <Dashboard />;
     }
