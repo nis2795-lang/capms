@@ -36,26 +36,50 @@ export default function TaxPlanner({ client }: TaxPlannerProps) {
     fileInputRef.current?.click();
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
       const file = e.target.files[0];
       setIsUploading(true);
-      // Simulate parsing and calculating after file selection
-      setTimeout(() => {
-        // Generate somewhat randomized data based on file to prove it's dynamic
-        // or just use realistic defaults that can be edited
-        setTaxData({
-          grossSalary: 1550000,
-          interestIncome: 45000,
-          deduction80C: 150000,
-          deduction80D: 25000,
-          hraExemption: 120000,
-          tdsDeducted: 160000,
-          fileName: file.name
+      
+      const formData = new FormData();
+      formData.append('file', file);
+      
+      try {
+        const response = await fetch('/api/parse-tax-doc', {
+          method: 'POST',
+          body: formData,
         });
+        
+        if (response.ok) {
+          const data = await response.json();
+          setTaxData({
+            grossSalary: data.grossSalary || 0,
+            interestIncome: data.interestIncome || 0,
+            deduction80C: data.deduction80C || 0,
+            deduction80D: data.deduction80D || 0,
+            hraExemption: data.hraExemption || 0,
+            tdsDeducted: data.tdsDeducted || 0,
+            fileName: file.name
+          });
+        } else {
+          console.error("Failed to parse tax document");
+          // Fallback to empty if fails
+          setTaxData({
+            grossSalary: 0,
+            interestIncome: 0,
+            deduction80C: 0,
+            deduction80D: 0,
+            hraExemption: 0,
+            tdsDeducted: 0,
+            fileName: file.name
+          });
+        }
+      } catch (error) {
+        console.error("Error uploading file:", error);
+      } finally {
         setIsUploading(false);
         setHasCalculated(true);
-      }, 2000);
+      }
     }
   };
 
