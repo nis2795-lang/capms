@@ -1,0 +1,6 @@
+{
+  "name": "CAPMS",
+  "description": "CA Practice Management System - An AI-powered Operating System for Chartered Accountant Firms.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
