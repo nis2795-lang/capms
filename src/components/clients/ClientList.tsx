@@ -1,13 +1,37 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Search, Filter, MoreVertical } from 'lucide-react';
 import { mockClients } from '../../data';
 import { Client } from '../../types';
+import AddClientForm from './AddClientForm';
 
 interface ClientListProps {
   onClientSelect: (clientId: string) => void;
 }
 
 export default function ClientList({ onClientSelect }: ClientListProps) {
+  const [isAddingClient, setIsAddingClient] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [clients, setClients] = useState<Client[]>(mockClients);
+
+  if (isAddingClient) {
+    return (
+      <AddClientForm 
+        onCancel={() => setIsAddingClient(false)} 
+        onSave={(newClient) => {
+          setClients([...clients, newClient]);
+          setIsAddingClient(false);
+        }} 
+      />
+    );
+  }
+
+  const filteredClients = clients.filter(client => 
+    client.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    client.pan.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (client.gstin && client.gstin.toLowerCase().includes(searchTerm.toLowerCase())) ||
+    client.contactPerson.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
   return (
     <div className="max-w-7xl mx-auto flex flex-col h-full space-y-6">
       <div className="flex items-end justify-between border-b border-zinc-200 pb-6">
@@ -18,13 +42,13 @@ export default function ClientList({ onClientSelect }: ClientListProps) {
           <div>
             <h1 className="text-3xl font-bold tracking-tighter">Client 360° Workspace</h1>
             <div className="flex gap-4 text-xs font-mono opacity-60 uppercase mt-2">
-               <span>Total Clients: {mockClients.length}</span>
+               <span>Total Clients: {clients.length}</span>
                <span>Active Modules: 4</span>
             </div>
           </div>
         </div>
         <div className="flex gap-2">
-          <button className="bg-zinc-900 text-white px-4 py-2 rounded-md text-sm font-medium">Add New Client</button>
+          <button onClick={() => setIsAddingClient(true)} className="bg-zinc-900 text-white px-4 py-2 rounded-md text-sm font-medium">Add New Client</button>
           <button className="bg-white border border-zinc-200 px-4 py-2 rounded-md text-sm font-medium">Export CSV</button>
         </div>
       </div>
@@ -33,7 +57,13 @@ export default function ClientList({ onClientSelect }: ClientListProps) {
         <div className="p-4 border-b border-zinc-200 flex flex-col sm:flex-row gap-4 items-center justify-between">
           <div className="bg-zinc-100 rounded-md px-3 py-1.5 flex items-center text-[13px] text-zinc-500 w-full max-w-md border border-transparent focus-within:border-zinc-300 focus-within:bg-white transition-colors">
              <Search className="h-4 w-4 mr-2" />
-             <input type="text" placeholder="Filter clients..." className="bg-transparent border-none outline-none w-full" />
+             <input 
+               type="text" 
+               placeholder="Filter clients..." 
+               value={searchTerm}
+               onChange={(e) => setSearchTerm(e.target.value)}
+               className="bg-transparent border-none outline-none w-full" 
+             />
           </div>
           <button className="inline-flex items-center px-3 py-1.5 border border-zinc-200 rounded-md text-[13px] font-medium text-zinc-700 bg-white hover:bg-zinc-50 transition-colors">
             <Filter className="h-4 w-4 mr-2 text-zinc-400" />
@@ -48,12 +78,12 @@ export default function ClientList({ onClientSelect }: ClientListProps) {
                 <th className="px-6 py-3 font-semibold tracking-wider">Client Name</th>
                 <th className="px-6 py-3 font-semibold tracking-wider">Identifiers</th>
                 <th className="px-6 py-3 font-semibold tracking-wider">Contact</th>
-                <th className="px-6 py-3 font-semibold tracking-wider">Health</th>
+
                 <th className="px-6 py-3 font-semibold tracking-wider text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-100">
-              {mockClients.map((client) => (
+              {filteredClients.map((client) => (
                 <tr 
                   key={client.id} 
                   className="hover:bg-zinc-50 cursor-pointer transition-colors"
@@ -78,15 +108,7 @@ export default function ClientList({ onClientSelect }: ClientListProps) {
                     <div className="font-medium text-zinc-900">{client.contactPerson}</div>
                     <div className="opacity-70 mt-0.5">{client.phone}</div>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`inline-flex items-center text-[10px] px-2 py-0.5 rounded font-bold uppercase tracking-wider ${
-                      client.healthScore === 'Green' ? 'text-green-800 bg-green-100' :
-                      client.healthScore === 'Yellow' ? 'text-yellow-800 bg-yellow-100' :
-                      'text-red-800 bg-red-100'
-                    }`}>
-                      Score: {client.healthScore}
-                    </span>
-                  </td>
+
                   <td className="px-6 py-4 whitespace-nowrap text-right">
                     <button className="text-zinc-400 hover:text-zinc-900 transition-colors p-1" onClick={(e) => { e.stopPropagation(); }}>
                       <MoreVertical className="h-4 w-4" />

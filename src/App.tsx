@@ -7,8 +7,8 @@ import EmployeeList from './components/employees/EmployeeList';
 import ComplianceCalendar from './components/calendar/ComplianceCalendar';
 import CRMClientEngagement from './components/crm/CRMClientEngagement';
 import BillingDashboard from './components/billing/BillingDashboard';
-import RiskHealthDashboard from './components/ai/RiskHealthDashboard';
-import AIAssistant from './components/ai/AIAssistant';
+import AIChatBot from './components/ai/AIChatBot';
+import ComplianceOpsCenter from './components/compliance/ComplianceOpsCenter';
 import TaskKanban from './components/tasks/TaskKanban';
 import DocumentVault from './components/documents/DocumentVault';
 import ComplianceEngine from './components/compliance/ComplianceEngine';
@@ -49,10 +49,10 @@ export default function App() {
         return <CRMClientEngagement />;
       case 'billing':
         return <BillingDashboard />;
-      case 'risk-health':
-        return <RiskHealthDashboard />;
-      case 'assistant':
-        return <AIAssistant />;
+      case 'ai-chat':
+        return <AIChatBot />;
+      case 'compliance-ops':
+        return <ComplianceOpsCenter />;
       case 'compliance':
         return <ComplianceEngine />;
       case 'documents':

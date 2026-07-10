@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { ViewState } from '../../types';
+import { mockClients } from '../../data';
 import { 
   LayoutDashboard, 
   Users, 
@@ -14,7 +15,8 @@ import {
   Calendar,
   HeartHandshake,
   IndianRupee,
-  ShieldAlert,
+  MessageSquareWarning,
+  Activity,
   Bot
 } from 'lucide-react';
 
@@ -26,6 +28,40 @@ interface LayoutProps {
 }
 
 export default function Layout({ children, currentView, onNavigate, onLogout }: LayoutProps) {
+  const [searchQuery, setSearchQuery] = useState('');
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const searchRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        document.getElementById('universal-search')?.focus();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (searchRef.current && !searchRef.current.contains(event.target as Node)) {
+        setIsSearchOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const searchResults = searchQuery
+    ? mockClients.filter(
+        (c) =>
+          c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          c.pan.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          (c.gstin && c.gstin.toLowerCase().includes(searchQuery.toLowerCase()))
+      )
+    : [];
+
   const navItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'clients', label: 'Client 360° Workspace', icon: Briefcase },
@@ -42,8 +78,8 @@ export default function Layout({ children, currentView, onNavigate, onLogout }: 
   ];
 
   const phase3Items = [
-    { id: 'risk-health', label: 'Risk & Health Score', icon: ShieldAlert },
-    { id: 'assistant', label: 'AI Client Assistant', icon: Bot },
+    { id: 'ai-chat', label: 'AI Firm Assistant', icon: Bot },
+    { id: 'compliance-ops', label: 'Compliance Ops Center', icon: Activity },
   ];
 
   return (
@@ -149,9 +185,48 @@ export default function Layout({ children, currentView, onNavigate, onLogout }: 
       <main className="flex-1 flex flex-col overflow-hidden">
         {/* Header */}
         <header className="h-16 bg-white border-b border-zinc-200 flex items-center justify-between px-6 z-0 flex-shrink-0">
-          <div className="flex-1 max-w-xl relative flex items-center">
-            <div className="bg-zinc-100 rounded-md px-4 py-2 w-[400px] flex items-center text-[13px] text-zinc-500 border border-transparent focus-within:border-zinc-300 transition-colors">
-               Universal Search (⌘ + K) — Try "PAN AHQ..."
+          <div className="flex-1 max-w-xl relative flex items-center" ref={searchRef}>
+            <div className="bg-zinc-100 rounded-md px-3 py-2 w-[400px] flex items-center text-[13px] text-zinc-500 border border-transparent focus-within:border-zinc-300 focus-within:bg-white transition-colors relative">
+               <Search className="h-4 w-4 mr-2" />
+               <input
+                 id="universal-search"
+                 type="text"
+                 value={searchQuery}
+                 onChange={(e) => {
+                   setSearchQuery(e.target.value);
+                   setIsSearchOpen(true);
+                 }}
+                 onFocus={() => setIsSearchOpen(true)}
+                 placeholder='Universal Search (⌘ + K) — Try "PAN AHQ..."'
+                 className="bg-transparent border-none outline-none w-full text-zinc-900 placeholder:text-zinc-500"
+               />
+               
+               {isSearchOpen && searchQuery && (
+                 <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-zinc-200 rounded-md shadow-lg overflow-hidden z-50">
+                   {searchResults.length > 0 ? (
+                     <ul className="max-h-64 overflow-y-auto">
+                       {searchResults.map((client) => (
+                         <li 
+                           key={client.id}
+                           className="px-4 py-3 hover:bg-zinc-50 cursor-pointer border-b border-zinc-100 last:border-0"
+                           onClick={() => {
+                             setSearchQuery('');
+                             setIsSearchOpen(false);
+                             onNavigate('clients');
+                           }}
+                         >
+                           <div className="font-medium text-zinc-900">{client.name}</div>
+                           <div className="text-xs text-zinc-500 font-mono mt-1">PAN: {client.pan} {client.gstin && `| GSTIN: ${client.gstin}`}</div>
+                         </li>
+                       ))}
+                     </ul>
+                   ) : (
+                     <div className="px-4 py-8 text-center text-sm text-zinc-500">
+                       No results found for "{searchQuery}"
+                     </div>
+                   )}
+                 </div>
+               )}
             </div>
           </div>
           

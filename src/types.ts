@@ -9,8 +9,8 @@ export type ViewState =
   | 'calendar'
   | 'crm'
   | 'billing'
-  | 'risk-health'
-  | 'assistant';
+  | 'ai-chat'
+  | 'compliance-ops';
 
 export interface Client {
   id: string;

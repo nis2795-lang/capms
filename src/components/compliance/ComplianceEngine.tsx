@@ -1,173 +1,238 @@
 import React, { useState } from 'react';
-import { Calculator, CheckCircle, Clock, AlertTriangle, FileText, Search, Play, Pause, ChevronRight } from 'lucide-react';
-import { Client } from '../../types';
+import { RefreshCw, AlertCircle, CheckCircle, Search, Mail, Download, Filter, ArrowRightLeft } from 'lucide-react';
 
-interface ComplianceTask {
+interface ReconTask {
   id: string;
   clientName: string;
-  type: string;
-  status: 'Ready' | 'Processing' | 'Validated' | 'Error';
-  dueDate: string;
-  progress: number;
+  type: 'GSTR-2B vs Books (ITC)' | '26AS vs Books (TDS)' | 'AIS vs ITR (Income)' | 'GSTR-1 vs 3B (Sales)';
+  period: string;
+  portalAmount: number;
+  booksAmount: number;
+  status: 'Matched' | 'Mismatch' | 'Processing';
+  alertMsg?: string;
 }
 
-const initialTasks: ComplianceTask[] = [
-  { id: 'COMP-1', clientName: 'Rajesh Kumar', type: 'ITR-1 Auto Computation', status: 'Validated', dueDate: '2026-07-31', progress: 100 },
-  { id: 'COMP-2', clientName: 'Acme Corp', type: 'GSTR-3B Reconciliation', status: 'Processing', dueDate: '2026-07-20', progress: 45 },
-  { id: 'COMP-3', clientName: 'TechVision Solutions', type: 'TDS Returns Q1', status: 'Ready', dueDate: '2026-07-15', progress: 0 },
-  { id: 'COMP-4', clientName: 'Global Exports', type: 'Form 16 Generation', status: 'Error', dueDate: '2026-07-10', progress: 80 },
+const initialRecons: ReconTask[] = [
+  { 
+    id: 'R-1', clientName: 'TechVision Solutions', type: 'GSTR-2B vs Books (ITC)', period: 'June 2026', 
+    portalAmount: 420000, booksAmount: 450000, status: 'Mismatch', 
+    alertMsg: '₹30,000 ITC missing in Portal (GSTR-2B)' 
+  },
+  { 
+    id: 'R-2', clientName: 'Acme Corp', type: '26AS vs Books (TDS)', period: 'Q1 FY26-27', 
+    portalAmount: 125000, booksAmount: 125000, status: 'Matched' 
+  },
+  { 
+    id: 'R-3', clientName: 'Rajesh Kumar', type: 'AIS vs ITR (Income)', period: 'FY25-26', 
+    portalAmount: 2500000, booksAmount: 2100000, status: 'Mismatch', 
+    alertMsg: '₹4,00,000 unreported Mutual Fund sale in AIS' 
+  },
+  { 
+    id: 'R-4', clientName: 'Global Exports', type: 'GSTR-1 vs 3B (Sales)', period: 'June 2026', 
+    portalAmount: 1850000, booksAmount: 1850000, status: 'Matched' 
+  },
+  { 
+    id: 'R-5', clientName: 'Nisha Enterprises', type: '26AS vs Books (TDS)', period: 'Q1 FY26-27', 
+    portalAmount: 0, booksAmount: 0, status: 'Processing' 
+  },
 ];
 
 export default function ComplianceEngine() {
-  const [tasks, setTasks] = useState(initialTasks);
+  const [recons, setRecons] = useState(initialRecons);
   const [searchTerm, setSearchTerm] = useState('');
+  const [activeFilter, setActiveFilter] = useState<'All' | 'Matched' | 'Mismatch'>('All');
 
-  const filteredTasks = tasks.filter(task => 
-    task.clientName.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    task.type.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredRecons = recons.filter(recon => 
+    (activeFilter === 'All' || recon.status === activeFilter) &&
+    (recon.clientName.toLowerCase().includes(searchTerm.toLowerCase()) || 
+     recon.type.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
-  const getStatusColor = (status: string) => {
-    switch(status) {
-      case 'Ready': return 'bg-blue-100 text-blue-700 border-blue-200';
-      case 'Processing': return 'bg-yellow-100 text-yellow-700 border-yellow-200';
-      case 'Validated': return 'bg-green-100 text-green-700 border-green-200';
-      case 'Error': return 'bg-red-100 text-red-700 border-red-200';
-      default: return 'bg-zinc-100 text-zinc-700 border-zinc-200';
-    }
-  };
-
-  const getStatusIcon = (status: string) => {
-    switch(status) {
-      case 'Ready': return <Play className="w-4 h-4 text-blue-500" />;
-      case 'Processing': return <Clock className="w-4 h-4 text-yellow-500 animate-pulse" />;
-      case 'Validated': return <CheckCircle className="w-4 h-4 text-green-500" />;
-      case 'Error': return <AlertTriangle className="w-4 h-4 text-red-500" />;
-      default: return null;
-    }
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(amount);
   };
 
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h2 className="text-2xl font-bold tracking-tight text-zinc-900">Compliance Engine</h2>
-          <p className="text-sm text-zinc-500 mt-1">Automated tax computations and statutory rule validations.</p>
+          <h2 className="text-2xl font-bold tracking-tight text-zinc-900">Compliance & Reconciliation Engine</h2>
+          <p className="text-sm text-zinc-500 mt-1">Automated matching of Government Portal data (26AS, AIS, GST) against Client Books.</p>
         </div>
         <div className="flex items-center space-x-3">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
-            <input 
-              type="text" 
-              placeholder="Search computations..." 
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-9 pr-4 py-2 bg-white border border-zinc-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900 w-64"
-            />
-          </div>
-          <button className="flex items-center px-4 py-2 bg-zinc-900 text-white rounded-md text-sm font-medium hover:bg-zinc-800 shadow-sm">
-            <Calculator className="w-4 h-4 mr-2" />
-            Run Batch Compute
+          <button className="flex items-center px-4 py-2 bg-zinc-900 text-white rounded-md text-sm font-medium hover:bg-zinc-800 shadow-sm transition-colors">
+            <RefreshCw className="w-4 h-4 mr-2" />
+            Run Auto-Reconciliation
           </button>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-        <div className="bg-white p-4 rounded-xl border border-zinc-200 shadow-sm flex items-center">
-          <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-lg flex items-center justify-center mr-4">
-            <Calculator className="w-6 h-6" />
-          </div>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+        <div className="bg-white p-5 rounded-xl border border-zinc-200 shadow-sm flex justify-between items-center">
           <div>
-            <p className="text-xs font-bold text-zinc-500 uppercase tracking-wider">Computations Run</p>
-            <p className="text-2xl font-bold text-zinc-900">1,248</p>
+            <p className="text-xs font-bold text-zinc-500 uppercase tracking-wider mb-1">Total Reconciliations</p>
+            <p className="text-3xl font-bold text-zinc-900">{recons.length}</p>
+          </div>
+          <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center">
+            <ArrowRightLeft className="w-6 h-6" />
           </div>
         </div>
-        <div className="bg-white p-4 rounded-xl border border-zinc-200 shadow-sm flex items-center">
-          <div className="w-12 h-12 bg-green-50 text-green-600 rounded-lg flex items-center justify-center mr-4">
+        <div className="bg-white p-5 rounded-xl border border-zinc-200 shadow-sm flex justify-between items-center">
+          <div>
+            <p className="text-xs font-bold text-zinc-500 uppercase tracking-wider mb-1">Perfect Matches</p>
+            <p className="text-3xl font-bold text-green-600">{recons.filter(r => r.status === 'Matched').length}</p>
+          </div>
+          <div className="w-12 h-12 bg-green-50 text-green-600 rounded-full flex items-center justify-center">
             <CheckCircle className="w-6 h-6" />
           </div>
-          <div>
-            <p className="text-xs font-bold text-zinc-500 uppercase tracking-wider">Rules Validated</p>
-            <p className="text-2xl font-bold text-zinc-900">14.5k</p>
-          </div>
         </div>
-        <div className="bg-white p-4 rounded-xl border border-zinc-200 shadow-sm flex items-center">
-          <div className="w-12 h-12 bg-red-50 text-red-600 rounded-lg flex items-center justify-center mr-4">
-            <AlertTriangle className="w-6 h-6" />
-          </div>
+        <div className="bg-white p-5 rounded-xl border border-zinc-200 shadow-sm flex justify-between items-center">
           <div>
-            <p className="text-xs font-bold text-zinc-500 uppercase tracking-wider">Anomalies Detected</p>
-            <p className="text-2xl font-bold text-zinc-900">32</p>
+            <p className="text-xs font-bold text-zinc-500 uppercase tracking-wider mb-1">Mismatches Found</p>
+            <p className="text-3xl font-bold text-red-600">{recons.filter(r => r.status === 'Mismatch').length}</p>
           </div>
-        </div>
-        <div className="bg-white p-4 rounded-xl border border-zinc-200 shadow-sm flex items-center">
-          <div className="w-12 h-12 bg-purple-50 text-purple-600 rounded-lg flex items-center justify-center mr-4">
-            <FileText className="w-6 h-6" />
-          </div>
-          <div>
-            <p className="text-xs font-bold text-zinc-500 uppercase tracking-wider">Ready to File</p>
-            <p className="text-2xl font-bold text-zinc-900">89</p>
+          <div className="w-12 h-12 bg-red-50 text-red-600 rounded-full flex items-center justify-center">
+            <AlertCircle className="w-6 h-6" />
           </div>
         </div>
       </div>
 
       <div className="bg-white rounded-xl border border-zinc-200 shadow-sm overflow-hidden">
-        <div className="p-5 border-b border-zinc-200 bg-zinc-50">
-          <h3 className="font-bold tracking-tight text-zinc-800">Active Computation Jobs</h3>
+        <div className="p-4 border-b border-zinc-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-zinc-50/50">
+          <div className="flex space-x-2">
+            {['All', 'Mismatch', 'Matched'].map((tab) => (
+              <button
+                key={tab}
+                onClick={() => setActiveFilter(tab as any)}
+                className={`px-4 py-1.5 text-sm font-medium rounded-full transition-colors ${
+                  activeFilter === tab 
+                    ? 'bg-zinc-900 text-white shadow-sm' 
+                    : 'bg-white text-zinc-600 border border-zinc-200 hover:bg-zinc-100'
+                }`}
+              >
+                {tab}
+              </button>
+            ))}
+          </div>
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
+            <input 
+              type="text" 
+              placeholder="Search clients or recon type..." 
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-9 pr-4 py-1.5 bg-white border border-zinc-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900 w-full sm:w-64"
+            />
+          </div>
         </div>
-        <div className="divide-y divide-zinc-200">
-          {filteredTasks.map((task) => (
-            <div key={task.id} className="p-5 hover:bg-zinc-50 transition-colors flex items-center justify-between group">
-              <div className="flex-1 flex items-center">
-                <div className="w-10 h-10 rounded-full bg-zinc-100 flex items-center justify-center mr-4">
-                  {getStatusIcon(task.status)}
-                </div>
-                <div>
-                  <h4 className="font-semibold text-zinc-900">{task.type}</h4>
-                  <p className="text-sm text-zinc-500">{task.clientName}</p>
-                </div>
-              </div>
-              
-              <div className="flex-1 px-8">
-                <div className="flex justify-between items-center mb-1">
-                  <span className="text-xs font-bold text-zinc-500 uppercase tracking-wider">Progress</span>
-                  <span className="text-xs font-mono text-zinc-700">{task.progress}%</span>
-                </div>
-                <div className="w-full bg-zinc-100 rounded-full h-1.5 overflow-hidden">
-                  <div 
-                    className={`h-1.5 rounded-full ${
-                      task.status === 'Validated' ? 'bg-green-500' :
-                      task.status === 'Error' ? 'bg-red-500' :
-                      task.status === 'Processing' ? 'bg-yellow-500' : 'bg-blue-500'
-                    }`} 
-                    style={{ width: `${task.progress}%` }}
-                  ></div>
-                </div>
-                {task.status === 'Error' && (
-                  <p className="text-[10px] text-red-500 mt-1">Rule #402 Validation failed: Mismatched PAN across documents.</p>
-                )}
-              </div>
-              
-              <div className="flex items-center space-x-6 justify-end flex-1">
-                <div className="text-right">
-                  <p className="text-xs font-bold text-zinc-500 uppercase tracking-wider">Due Date</p>
-                  <p className="text-sm font-medium font-mono text-zinc-700">{task.dueDate}</p>
-                </div>
-                <span className={`px-2.5 py-1 text-xs font-bold uppercase tracking-wider border rounded w-24 text-center ${getStatusColor(task.status)}`}>
-                  {task.status}
-                </span>
-                <button className="p-2 text-zinc-400 hover:text-zinc-900 hover:bg-zinc-100 rounded-full transition-colors opacity-0 group-hover:opacity-100">
-                  <ChevronRight className="w-5 h-5" />
-                </button>
-              </div>
-            </div>
-          ))}
+
+        <div className="overflow-x-auto">
+          <table className="w-full text-left border-collapse">
+            <thead>
+              <tr className="bg-zinc-50 border-b border-zinc-200">
+                <th className="px-6 py-4 text-xs font-bold text-zinc-500 uppercase tracking-wider">Client & Recon Type</th>
+                <th className="px-6 py-4 text-xs font-bold text-zinc-500 uppercase tracking-wider text-right">Portal Data</th>
+                <th className="px-6 py-4 text-xs font-bold text-zinc-500 uppercase tracking-wider text-right">Client Books</th>
+                <th className="px-6 py-4 text-xs font-bold text-zinc-500 uppercase tracking-wider text-right">Variance</th>
+                <th className="px-6 py-4 text-xs font-bold text-zinc-500 uppercase tracking-wider text-center">Status</th>
+                <th className="px-6 py-4 text-xs font-bold text-zinc-500 uppercase tracking-wider text-right">Action</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-zinc-200">
+              {filteredRecons.map((recon) => {
+                const variance = recon.portalAmount - recon.booksAmount;
+                const isMismatch = recon.status === 'Mismatch';
+                
+                return (
+                  <tr key={recon.id} className="hover:bg-zinc-50 transition-colors group">
+                    <td className="px-6 py-4">
+                      <p className="font-semibold text-zinc-900 text-sm mb-0.5">{recon.clientName}</p>
+                      <div className="flex items-center text-xs text-zinc-500 space-x-2">
+                        <span className="bg-zinc-100 px-1.5 py-0.5 rounded font-mono text-[10px] uppercase text-zinc-600 border border-zinc-200">
+                          {recon.period}
+                        </span>
+                        <span>{recon.type}</span>
+                      </div>
+                      {recon.alertMsg && (
+                        <p className="text-xs text-red-600 font-medium mt-1.5 flex items-center">
+                          <AlertCircle className="w-3 h-3 mr-1" /> {recon.alertMsg}
+                        </p>
+                      )}
+                    </td>
+                    
+                    <td className="px-6 py-4 text-right">
+                      {recon.status === 'Processing' ? (
+                        <span className="text-zinc-400 font-mono text-sm">--</span>
+                      ) : (
+                        <p className="font-mono text-sm text-zinc-900">{formatCurrency(recon.portalAmount)}</p>
+                      )}
+                    </td>
+                    
+                    <td className="px-6 py-4 text-right">
+                      {recon.status === 'Processing' ? (
+                        <span className="text-zinc-400 font-mono text-sm">--</span>
+                      ) : (
+                        <p className="font-mono text-sm text-zinc-900">{formatCurrency(recon.booksAmount)}</p>
+                      )}
+                    </td>
+                    
+                    <td className="px-6 py-4 text-right">
+                      {recon.status === 'Processing' ? (
+                        <span className="text-zinc-400 font-mono text-sm">--</span>
+                      ) : (
+                        <p className={`font-mono text-sm font-bold ${variance !== 0 ? 'text-red-600' : 'text-green-600'}`}>
+                          {variance > 0 ? '+' : ''}{formatCurrency(variance)}
+                        </p>
+                      )}
+                    </td>
+                    
+                    <td className="px-6 py-4 text-center">
+                      <div className="flex justify-center">
+                        {recon.status === 'Matched' ? (
+                          <span className="flex items-center text-xs font-bold text-green-700 bg-green-100 px-2.5 py-1 rounded-full border border-green-200">
+                            <CheckCircle className="w-3 h-3 mr-1" /> Matched
+                          </span>
+                        ) : recon.status === 'Mismatch' ? (
+                          <span className="flex items-center text-xs font-bold text-red-700 bg-red-100 px-2.5 py-1 rounded-full border border-red-200">
+                            <AlertCircle className="w-3 h-3 mr-1" /> Mismatch
+                          </span>
+                        ) : (
+                          <span className="flex items-center text-xs font-bold text-zinc-600 bg-zinc-100 px-2.5 py-1 rounded-full border border-zinc-200">
+                            <RefreshCw className="w-3 h-3 mr-1 animate-spin" /> Processing
+                          </span>
+                        )}
+                      </div>
+                    </td>
+                    
+                    <td className="px-6 py-4 text-right">
+                      <div className="flex justify-end space-x-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                        {isMismatch && (
+                          <button 
+                            className="p-1.5 text-blue-600 hover:bg-blue-50 rounded border border-transparent hover:border-blue-200 transition-colors"
+                            title="Email discrepancy report to client"
+                          >
+                            <Mail className="w-4 h-4" />
+                          </button>
+                        )}
+                        <button 
+                          className="p-1.5 text-zinc-400 hover:text-zinc-900 hover:bg-zinc-100 rounded border border-transparent hover:border-zinc-200 transition-colors"
+                          title="Download Recon Report"
+                        >
+                          <Download className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
           
-          {filteredTasks.length === 0 && (
+          {filteredRecons.length === 0 && (
             <div className="p-12 text-center text-zinc-500">
-              <Calculator className="w-12 h-12 mx-auto text-zinc-300 mb-4" />
-              <p className="font-medium text-zinc-900">No active computations</p>
-              <p className="text-sm mt-1">Run a new batch compute to start processing.</p>
+              <CheckCircle className="w-12 h-12 mx-auto text-zinc-300 mb-4" />
+              <p className="font-medium text-zinc-900">All caught up!</p>
+              <p className="text-sm mt-1">No matching criteria found.</p>
             </div>
           )}
         </div>
