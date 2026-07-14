@@ -3,7 +3,7 @@ export type ViewState =
   | 'clients' 
   | 'client-details'
   | 'employees' 
-  | 'compliance' 
+  | 'notice-tracker' 
   | 'documents' 
   | 'tasks'
   | 'calendar'

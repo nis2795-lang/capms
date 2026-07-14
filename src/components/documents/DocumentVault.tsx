@@ -1,264 +1,254 @@
 import React, { useState } from 'react';
-import { Search, Upload, Download, Share2, MoreVertical, FileText, FileSpreadsheet, File, AlertCircle, CheckCircle, Clock, Shield, Key, FileSignature, Send } from 'lucide-react';
+import { 
+  Folder, FileText, Download, Eye, UploadCloud, 
+  Search, Bell, CheckCircle2, AlertCircle, 
+  ChevronDown, FileImage, FileSpreadsheet, Send
+} from 'lucide-react';
 
-interface VaultDocument {
+interface ClientDocument {
   id: string;
   name: string;
-  clientName: string;
-  type: 'PDF' | 'Excel' | 'Image';
-  category: 'ITR' | 'GST' | 'Audit' | 'KYC';
-  uploadDate: string;
-  status: 'Verified' | 'Signature Pending' | 'Action Required' | 'Missing';
+  type: 'PDF' | 'Excel' | 'Image' | 'Word' | 'ZIP';
+  uploadedOn: string;
+  uploadedBy: string;
   size: string;
-  extractedData?: Record<string, string>;
-  alertMsg?: string;
+  category: string;
 }
 
-const initialDocuments: VaultDocument[] = [
-  { 
-    id: 'D-101', name: 'Form16_FY23-24.pdf', clientName: 'Rajesh Kumar', type: 'PDF', category: 'ITR', 
-    uploadDate: '2026-07-06', status: 'Verified', size: '1.2 MB', 
-    extractedData: { 'Gross Salary': '₹15,50,000', 'TDS': '₹1,20,000' } 
-  },
-  { 
-    id: 'D-102', name: 'BankStatement_Q1.xlsx', clientName: 'Acme Corp', type: 'Excel', category: 'Audit', 
-    uploadDate: '2026-07-05', status: 'Action Required', size: '4.5 MB',
-    alertMsg: 'Password protected. Awaiting password from client.'
-  },
-  { 
-    id: 'D-103', name: 'PAN_Card.jpg', clientName: 'Nisha Enterprises', type: 'Image', category: 'KYC', 
-    uploadDate: '2026-07-04', status: 'Verified', size: '850 KB', 
-    extractedData: { 'PAN': 'ABCDE1234F' } 
-  },
-  { 
-    id: 'D-104', name: 'GST_Invoices_June (Expected)', clientName: 'TechVision Solutions', type: 'PDF', category: 'GST', 
-    uploadDate: '--', status: 'Missing', size: '--',
-    alertMsg: 'Required for June GSTR-1 filing.'
-  },
-  { 
-    id: 'D-105', name: 'Audit_Report_FY24.pdf', clientName: 'Global Exports', type: 'PDF', category: 'Audit', 
-    uploadDate: '2026-07-02', status: 'Signature Pending', size: '3.1 MB',
-    alertMsg: 'Awaiting Director e-Signature.'
-  },
+interface RequiredDoc {
+  id: string;
+  name: string;
+  status: 'Received' | 'Missing';
+}
+
+const MOCK_DOCS: ClientDocument[] = [
+  { id: '1', name: 'Sales Register.xlsx', type: 'Excel', uploadedOn: '10 Jul 2026', uploadedBy: 'Client', size: '2.3 MB', category: 'GST - July Return' },
+  { id: '2', name: 'Bank Statement.pdf', type: 'PDF', uploadedOn: '10 Jul 2026', uploadedBy: 'Client', size: '8.5 MB', category: 'Income Tax - AY 2026-27' },
+  { id: '3', name: 'Trial Balance.xlsx', type: 'Excel', uploadedOn: '11 Jul 2026', uploadedBy: 'Rahul', size: '950 KB', category: 'Audit' },
+  { id: '4', name: 'Form 16.pdf', type: 'PDF', uploadedOn: '12 Jul 2026', uploadedBy: 'Client', size: '1.2 MB', category: 'Income Tax - AY 2026-27' },
+  { id: '5', name: 'PAN Card.jpg', type: 'Image', uploadedOn: '01 Apr 2026', uploadedBy: 'Client', size: '400 KB', category: 'Other Documents' },
+  { id: '6', name: 'Aadhaar.jpg', type: 'Image', uploadedOn: '01 Apr 2026', uploadedBy: 'Client', size: '500 KB', category: 'Other Documents' },
+];
+
+const REQUIRED_DOCS: RequiredDoc[] = [
+  { id: 'r1', name: 'PAN', status: 'Received' },
+  { id: 'r2', name: 'Aadhaar', status: 'Received' },
+  { id: 'r3', name: 'Bank Statement', status: 'Missing' },
+  { id: 'r4', name: 'Form 16', status: 'Received' },
+  { id: 'r5', name: 'Capital Gain Statement', status: 'Missing' },
 ];
 
 export default function DocumentVault() {
-  const [documents, setDocuments] = useState(initialDocuments);
   const [searchTerm, setSearchTerm] = useState('');
-  const [activeTab, setActiveTab] = useState<'All' | 'ITR' | 'GST' | 'Audit' | 'KYC'>('All');
+  const [selectedCategory, setSelectedCategory] = useState('All');
+  const [selectedClient, setSelectedClient] = useState('ABC Industries');
+  const [showUploadMsg, setShowUploadMsg] = useState(false);
 
-  const filteredDocs = documents.filter(doc => 
-    (activeTab === 'All' || doc.category === activeTab) &&
-    (doc.name.toLowerCase().includes(searchTerm.toLowerCase()) || doc.clientName.toLowerCase().includes(searchTerm.toLowerCase()))
-  );
+  const categories = ['All', 'GST - July Return', 'Income Tax - AY 2026-27', 'Audit', 'Notices', 'Other Documents'];
 
-  const missingCount = documents.filter(d => d.status === 'Missing').length;
-  const pendingSigCount = documents.filter(d => d.status === 'Signature Pending').length;
+  const filteredDocs = MOCK_DOCS.filter(doc => {
+    const matchesSearch = doc.name.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesCategory = selectedCategory === 'All' ? true : doc.category === selectedCategory;
+    return matchesSearch && matchesCategory;
+  });
 
-  const getFileIcon = (type: string, status: string) => {
-    if (status === 'Missing') return <File className="w-8 h-8 text-zinc-300 border-2 border-dashed border-zinc-300 rounded" />;
-    switch(type) {
-      case 'PDF': return <FileText className="w-8 h-8 text-red-500" />;
-      case 'Excel': return <FileSpreadsheet className="w-8 h-8 text-green-500" />;
-      case 'Image': return <File className="w-8 h-8 text-blue-500" />;
-      default: return <File className="w-8 h-8 text-zinc-500" />;
+  const getFileIcon = (type: string) => {
+    switch (type) {
+      case 'PDF': return <FileText className="h-5 w-5 text-red-500" />;
+      case 'Excel': return <FileSpreadsheet className="h-5 w-5 text-green-600" />;
+      case 'Image': return <FileImage className="h-5 w-5 text-blue-500" />;
+      default: return <FileText className="h-5 w-5 text-zinc-500" />;
     }
   };
 
-  const getStatusBadge = (status: string) => {
-    switch(status) {
-      case 'Verified': 
-        return <span className="inline-flex items-center text-[10px] px-2 py-0.5 rounded font-bold uppercase tracking-wider text-green-700 bg-green-100 border border-green-200"><CheckCircle className="w-3 h-3 mr-1" /> Verified</span>;
-      case 'Signature Pending': 
-        return <span className="inline-flex items-center text-[10px] px-2 py-0.5 rounded font-bold uppercase tracking-wider text-purple-700 bg-purple-100 border border-purple-200"><FileSignature className="w-3 h-3 mr-1" /> Sig Pending</span>;
-      case 'Action Required': 
-        return <span className="inline-flex items-center text-[10px] px-2 py-0.5 rounded font-bold uppercase tracking-wider text-yellow-700 bg-yellow-100 border border-yellow-200"><Key className="w-3 h-3 mr-1" /> Action Req</span>;
-      case 'Missing': 
-        return <span className="inline-flex items-center text-[10px] px-2 py-0.5 rounded font-bold uppercase tracking-wider text-red-700 bg-red-100 border border-red-200"><AlertCircle className="w-3 h-3 mr-1" /> Missing</span>;
-      default: return null;
-    }
+  const handleUploadClick = () => {
+    setShowUploadMsg(true);
+    setTimeout(() => setShowUploadMsg(false), 3000);
   };
+
+  const receivedCount = REQUIRED_DOCS.filter(d => d.status === 'Received').length;
+  const progressPercent = Math.round((receivedCount / REQUIRED_DOCS.length) * 100);
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h2 className="text-2xl font-bold tracking-tight text-zinc-900">Secure Document Vault</h2>
-          <p className="text-sm text-zinc-500 mt-1">Smart OCR extraction, missing document tracking, and secure client sharing.</p>
-        </div>
-        <div className="flex items-center space-x-3">
-          <button className="flex items-center px-4 py-2 bg-zinc-900 text-white rounded-md text-sm font-medium hover:bg-zinc-800 shadow-sm transition-colors">
-            <Upload className="w-4 h-4 mr-2" />
-            Upload File
-          </button>
+    <div className="max-w-7xl mx-auto flex flex-col h-full space-y-6">
+      {/* Header */}
+      <div className="flex items-end justify-between border-b border-zinc-200 pb-6">
+        <div className="flex items-center gap-6">
+          <div className="w-16 h-16 bg-white rounded-xl flex items-center justify-center border border-zinc-200 shadow-sm relative overflow-hidden">
+            <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/10 to-blue-500/10"></div>
+            <Folder className="h-8 w-8 text-indigo-600 relative z-10" />
+          </div>
+          <div>
+            <h1 className="text-3xl font-bold tracking-tighter">Client Document Workspace</h1>
+            <div className="flex items-center gap-2 text-xs font-mono opacity-60 uppercase mt-2">
+               <span>One Client. One Workspace. Every Document.</span>
+            </div>
+          </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-        <div className="bg-white p-5 rounded-xl border border-zinc-200 shadow-sm">
-          <div className="flex justify-between items-start">
-            <div>
-              <p className="text-xs font-bold text-zinc-500 uppercase tracking-wider mb-1">Total Stored</p>
-              <p className="text-3xl font-bold text-zinc-900">14.2k</p>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        
+        {/* Left Column - Main Document Area */}
+        <div className="lg:col-span-2 space-y-6">
+          
+          {/* Action Bar */}
+          <div className="bg-white p-4 rounded-xl border border-zinc-200 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <span className="text-sm font-medium text-zinc-500">Client:</span>
+              <button className="flex items-center gap-2 bg-zinc-50 border border-zinc-200 px-3 py-1.5 rounded-md text-sm font-bold text-zinc-900 hover:bg-zinc-100 transition-colors">
+                {selectedClient} <ChevronDown className="h-4 w-4" />
+              </button>
             </div>
-            <div className="w-10 h-10 bg-blue-50 text-blue-600 rounded-lg flex items-center justify-center"><Shield className="w-5 h-5" /></div>
-          </div>
-          <p className="text-xs text-zinc-500 mt-2 font-mono">1.2 TB Encrypted Data</p>
-        </div>
-        <div className="bg-white p-5 rounded-xl border border-zinc-200 shadow-sm border-l-4 border-l-red-500 cursor-pointer hover:bg-red-50 transition-colors" onClick={() => setSearchTerm('Missing')}>
-          <div className="flex justify-between items-start">
-            <div>
-              <p className="text-xs font-bold text-zinc-500 uppercase tracking-wider mb-1">Missing Documents</p>
-              <p className="text-3xl font-bold text-red-600">{missingCount}</p>
+            <div className="flex gap-2">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
+                <input 
+                  type="text" 
+                  placeholder="Search documents..." 
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-9 pr-4 py-2 bg-white border border-zinc-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900 w-full sm:w-64 transition-all"
+                />
+              </div>
+              <button 
+                onClick={handleUploadClick}
+                className="flex items-center bg-zinc-900 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-zinc-800 transition-colors whitespace-nowrap"
+              >
+                <UploadCloud className="h-4 w-4 mr-2" />
+                Upload
+              </button>
             </div>
-            <div className="w-10 h-10 bg-red-50 text-red-600 rounded-lg flex items-center justify-center"><AlertCircle className="w-5 h-5" /></div>
           </div>
-          <p className="text-xs text-zinc-500 mt-2">Blocking 2 compliance tasks</p>
-        </div>
-        <div className="bg-white p-5 rounded-xl border border-zinc-200 shadow-sm border-l-4 border-l-purple-500 cursor-pointer hover:bg-purple-50 transition-colors" onClick={() => setSearchTerm('Signature Pending')}>
-          <div className="flex justify-between items-start">
-            <div>
-              <p className="text-xs font-bold text-zinc-500 uppercase tracking-wider mb-1">Pending Signatures</p>
-              <p className="text-3xl font-bold text-purple-600">{pendingSigCount}</p>
-            </div>
-            <div className="w-10 h-10 bg-purple-50 text-purple-600 rounded-lg flex items-center justify-center"><FileSignature className="w-5 h-5" /></div>
-          </div>
-          <p className="text-xs text-zinc-500 mt-2">Awaiting client e-Sign</p>
-        </div>
-        <div className="bg-white p-5 rounded-xl border border-zinc-200 shadow-sm">
-          <div className="flex justify-between items-start">
-            <div>
-              <p className="text-xs font-bold text-zinc-500 uppercase tracking-wider mb-1">Auto-Extracted (OCR)</p>
-              <p className="text-3xl font-bold text-green-600">89%</p>
-            </div>
-            <div className="w-10 h-10 bg-green-50 text-green-600 rounded-lg flex items-center justify-center"><CheckCircle className="w-5 h-5" /></div>
-          </div>
-          <p className="text-xs text-zinc-500 mt-2">Data successfully parsed</p>
-        </div>
-      </div>
+          {showUploadMsg && (
+             <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-md text-sm font-medium flex items-center shadow-sm">
+               <CheckCircle2 className="h-4 w-4 mr-2" />
+               Upload initiated for {selectedClient} workspace.
+             </div>
+          )}
 
-      <div className="bg-white rounded-xl border border-zinc-200 shadow-sm overflow-hidden">
-        <div className="flex border-b border-zinc-200 overflow-x-auto bg-zinc-50/50">
-          {['All', 'ITR', 'GST', 'Audit', 'KYC'].map((tab) => (
-            <button
-              key={tab}
-              onClick={() => setActiveTab(tab as any)}
-              className={`px-6 py-4 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
-                activeTab === tab 
-                  ? 'border-zinc-900 text-zinc-900 bg-white' 
-                  : 'border-transparent text-zinc-500 hover:text-zinc-700 hover:bg-zinc-100'
-              }`}
-            >
-              {tab}
-            </button>
-          ))}
-        </div>
-
-        <div className="p-4 border-b border-zinc-200 bg-white flex flex-col sm:flex-row justify-end">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
-            <input 
-              type="text" 
-              placeholder="Search by name, client or status..." 
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-9 pr-4 py-1.5 bg-white border border-zinc-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900 w-full sm:w-80"
-            />
+          {/* Folder Navigation */}
+          <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
+            {categories.map(cat => (
+              <button
+                key={cat}
+                onClick={() => setSelectedCategory(cat)}
+                className={`px-4 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${
+                  selectedCategory === cat 
+                  ? 'bg-zinc-900 text-white shadow-sm' 
+                  : 'bg-white text-zinc-600 border border-zinc-200 hover:bg-zinc-100'
+                }`}
+              >
+                {cat}
+              </button>
+            ))}
           </div>
-        </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="bg-zinc-50 border-b border-zinc-200">
-                <th className="px-6 py-4 text-xs font-bold text-zinc-500 uppercase tracking-wider">File Details</th>
-                <th className="px-6 py-4 text-xs font-bold text-zinc-500 uppercase tracking-wider">Client & Category</th>
-                <th className="px-6 py-4 text-xs font-bold text-zinc-500 uppercase tracking-wider">Status & Insights</th>
-                <th className="px-6 py-4 text-xs font-bold text-zinc-500 uppercase tracking-wider text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-zinc-200">
-              {filteredDocs.map((doc) => (
-                <tr key={doc.id} className={`hover:bg-zinc-50 transition-colors group ${doc.status === 'Missing' ? 'bg-red-50/20' : ''}`}>
-                  <td className="px-6 py-4">
-                    <div className="flex items-center">
-                      <div className="w-10 h-10 rounded bg-white border border-zinc-200 shadow-sm flex items-center justify-center mr-4 shrink-0">
-                        {getFileIcon(doc.type, doc.status)}
+          {/* Document List */}
+          <div className="bg-white border border-zinc-200 rounded-xl overflow-hidden shadow-sm">
+            <table className="w-full text-left text-sm border-collapse">
+              <thead>
+                <tr className="bg-zinc-50 border-b border-zinc-200 text-zinc-500">
+                  <th className="px-4 py-3 font-semibold uppercase tracking-wider text-[10px]">File Name</th>
+                  <th className="px-4 py-3 font-semibold uppercase tracking-wider text-[10px]">Uploaded On</th>
+                  <th className="px-4 py-3 font-semibold uppercase tracking-wider text-[10px]">Uploaded By</th>
+                  <th className="px-4 py-3 font-semibold uppercase tracking-wider text-[10px]">Size</th>
+                  <th className="px-4 py-3 font-semibold uppercase tracking-wider text-[10px] text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-zinc-200">
+                {filteredDocs.map(doc => (
+                  <tr key={doc.id} className="hover:bg-zinc-50/50 transition-colors group">
+                    <td className="px-4 py-3 flex items-center gap-3">
+                      <div className="w-8 h-8 rounded bg-zinc-100 flex items-center justify-center shrink-0 border border-zinc-200">
+                        {getFileIcon(doc.type)}
                       </div>
                       <div>
-                        <p className={`font-semibold text-sm mb-0.5 ${doc.status === 'Missing' ? 'text-zinc-500 italic' : 'text-zinc-900'}`}>{doc.name}</p>
-                        <div className="flex items-center text-xs text-zinc-500 font-mono">
-                          <span>{doc.size}</span>
-                          <span className="mx-2">•</span>
-                          <span>{doc.uploadDate !== '--' ? `Uploaded ${doc.uploadDate}` : 'Not Uploaded'}</span>
-                        </div>
+                        <p className="font-bold text-zinc-900 text-[13px]">{doc.name}</p>
+                        {selectedCategory === 'All' && (
+                          <p className="text-[10px] text-zinc-500 uppercase tracking-wide mt-0.5">{doc.category}</p>
+                        )}
                       </div>
-                    </div>
-                  </td>
-                  
-                  <td className="px-6 py-4">
-                    <p className="text-sm font-medium text-zinc-900 mb-1">{doc.clientName}</p>
-                    <span className="px-2 py-0.5 bg-zinc-100 text-zinc-600 border border-zinc-200 rounded text-[10px] font-bold uppercase tracking-wider">
-                      {doc.category}
-                    </span>
-                  </td>
-                  
-                  <td className="px-6 py-4">
-                    <div className="mb-2">
-                      {getStatusBadge(doc.status)}
-                    </div>
-                    
-                    {doc.alertMsg && (
-                      <p className={`text-[11px] font-medium ${doc.status === 'Missing' || doc.status === 'Action Required' ? 'text-red-600' : 'text-purple-600'}`}>
-                        {doc.alertMsg}
-                      </p>
-                    )}
-                    
-                    {doc.extractedData && (
-                      <div className="mt-1.5 flex flex-wrap gap-1.5">
-                        {Object.entries(doc.extractedData).map(([k, v]) => (
-                          <span key={k} className="text-[10px] font-mono text-zinc-600 bg-green-50 border border-green-200 px-1.5 py-0.5 rounded">
-                            <span className="font-bold opacity-60 mr-1">{k}:</span>{v}
-                          </span>
-                        ))}
-                      </div>
-                    )}
-                  </td>
-                  
-                  <td className="px-6 py-4 text-right">
-                    <div className="flex items-center justify-end space-x-2">
-                      {doc.status === 'Missing' || doc.status === 'Action Required' || doc.status === 'Signature Pending' ? (
-                        <button className="flex items-center px-3 py-1.5 bg-white border border-zinc-300 text-zinc-700 rounded text-xs font-medium hover:bg-zinc-50 shadow-sm">
-                          <Send className="w-3 h-3 mr-1.5" />
-                          Remind Client
+                    </td>
+                    <td className="px-4 py-3 text-zinc-600 font-mono text-xs">{doc.uploadedOn}</td>
+                    <td className="px-4 py-3">
+                      <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${
+                        doc.uploadedBy === 'Client' ? 'bg-indigo-50 text-indigo-700 border border-indigo-100' : 'bg-zinc-100 text-zinc-700 border border-zinc-200'
+                      }`}>
+                        {doc.uploadedBy}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-zinc-500 font-mono text-xs">{doc.size}</td>
+                    <td className="px-4 py-3 text-right">
+                      <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button className="text-zinc-500 hover:text-indigo-600 p-1.5 rounded hover:bg-indigo-50 transition-colors" title="Preview">
+                          <Eye className="h-4 w-4" />
                         </button>
-                      ) : (
-                        <div className="opacity-0 group-hover:opacity-100 transition-opacity flex space-x-1">
-                          <button className="p-1.5 text-zinc-400 hover:text-blue-600 hover:bg-blue-50 rounded border border-transparent hover:border-blue-200 transition-colors" title="Create Secure Share Link">
-                            <Share2 className="w-4 h-4" />
-                          </button>
-                          <button className="p-1.5 text-zinc-400 hover:text-zinc-900 hover:bg-zinc-100 rounded border border-transparent hover:border-zinc-200 transition-colors" title="Download">
-                            <Download className="w-4 h-4" />
-                          </button>
-                          <button className="p-1.5 text-zinc-400 hover:text-zinc-900 hover:bg-zinc-100 rounded border border-transparent hover:border-zinc-200 transition-colors">
-                            <MoreVertical className="w-4 h-4" />
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          
-          {filteredDocs.length === 0 && (
-            <div className="p-12 text-center text-zinc-500">
-              <Shield className="w-12 h-12 mx-auto text-zinc-300 mb-4" />
-              <p className="font-medium text-zinc-900">No documents found</p>
-              <p className="text-sm mt-1">Adjust your filters or search term.</p>
+                        <button className="text-zinc-500 hover:text-indigo-600 p-1.5 rounded hover:bg-indigo-50 transition-colors" title="Download">
+                          <Download className="h-4 w-4" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+                {filteredDocs.length === 0 && (
+                  <tr>
+                    <td colSpan={5} className="py-12 text-center text-zinc-500">
+                      <Folder className="w-10 h-10 mx-auto text-zinc-300 mb-3" />
+                      <p className="text-sm font-medium text-zinc-900">No documents found</p>
+                      <p className="text-xs mt-1">Try a different search term or category</p>
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {/* Right Column - Checklist & Reminders */}
+        <div className="space-y-6">
+          <div className="bg-white border border-zinc-200 rounded-xl p-5 shadow-sm">
+            <h3 className="font-bold text-zinc-900 text-sm mb-4">Required Documents Checklist</h3>
+            <div className="mb-6">
+               <div className="flex justify-between items-center mb-2">
+                 <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider">Completion Progress</span>
+                 <span className="text-xs font-black text-indigo-600">{progressPercent}%</span>
+               </div>
+               <div className="w-full bg-zinc-100 rounded-full h-2 overflow-hidden">
+                 <div className="bg-indigo-600 h-2 rounded-full transition-all duration-500" style={{ width: `${progressPercent}%` }}></div>
+               </div>
             </div>
-          )}
+
+            <div className="space-y-3">
+              {REQUIRED_DOCS.map(doc => (
+                <div key={doc.id} className="flex items-center justify-between py-1.5 border-b border-zinc-50 last:border-0">
+                  <span className={`text-sm ${doc.status === 'Received' ? 'text-zinc-900 font-medium' : 'text-zinc-500'}`}>{doc.name}</span>
+                  {doc.status === 'Received' ? (
+                    <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+                  ) : (
+                    <AlertCircle className="h-4 w-4 text-red-500" />
+                  )}
+                </div>
+              ))}
+            </div>
+
+            <button className="w-full mt-6 flex items-center justify-center bg-zinc-900 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-zinc-800 transition-colors">
+              <Send className="h-4 w-4 mr-2" />
+              Send Reminder
+            </button>
+          </div>
+
+          <div className="bg-zinc-950 rounded-xl p-5 border border-zinc-800 text-white overflow-hidden relative shadow-lg">
+            <div className="absolute -right-6 -top-6 w-32 h-32 bg-indigo-600 rounded-full blur-3xl opacity-20 pointer-events-none"></div>
+            <h3 className="font-bold text-sm mb-2 uppercase tracking-widest text-indigo-400">Client Portal Status</h3>
+            <p className="text-xs text-zinc-400 mb-4 leading-relaxed">
+              ABC Industries is active on the client portal. They last logged in 2 hours ago.
+            </p>
+            <div className="flex items-center gap-2">
+               <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
+               <span className="text-xs font-mono font-bold text-emerald-400">Portal Link Active</span>
+            </div>
+          </div>
         </div>
       </div>
     </div>

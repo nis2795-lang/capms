@@ -11,7 +11,7 @@ import AIChatBot from './components/ai/AIChatBot';
 import ComplianceOpsCenter from './components/compliance/ComplianceOpsCenter';
 import TaskKanban from './components/tasks/TaskKanban';
 import DocumentVault from './components/documents/DocumentVault';
-import ComplianceEngine from './components/compliance/ComplianceEngine';
+import NoticeTracker from './components/compliance/NoticeTracker';
 import { ViewState } from './types';
 
 export default function App() {
@@ -53,8 +53,8 @@ export default function App() {
         return <AIChatBot />;
       case 'compliance-ops':
         return <ComplianceOpsCenter />;
-      case 'compliance':
-        return <ComplianceEngine />;
+      case 'notice-tracker':
+        return <NoticeTracker />;
       case 'documents':
         return <DocumentVault />;
       case 'tasks':

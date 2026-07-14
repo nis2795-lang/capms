@@ -17,7 +17,8 @@ import {
   IndianRupee,
   MessageSquareWarning,
   Activity,
-  Bot
+  Bot,
+  Landmark
 } from 'lucide-react';
 
 interface LayoutProps {
@@ -66,7 +67,7 @@ export default function Layout({ children, currentView, onNavigate, onLogout }: 
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'clients', label: 'Client 360° Workspace', icon: Briefcase },
     { id: 'employees', label: 'Employee Management', icon: Users },
-    { id: 'compliance', label: 'Compliance Engine', icon: FileCheck },
+    { id: 'notice-tracker', label: 'Notice & Hearing Tracker', icon: Landmark },
     { id: 'documents', label: 'Document Management', icon: Files },
     { id: 'tasks', label: 'Workflow & Tasks', icon: CheckSquare },
   ];
