@@ -35,11 +35,7 @@ export default function AddClientForm({ onCancel, onSave }: AddClientFormProps) 
 
   const tabs = [
     'Basic Details',
-    'Services Applicable',
-    'Service Assignees',
-    'Contact Persons',
-    'Credentials',
-    'Document Shortcuts'
+    'Contact Persons'
   ];
 
   return (
